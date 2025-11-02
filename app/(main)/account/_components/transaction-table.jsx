@@ -1,5 +1,6 @@
 "use client";
 
+import { bulkDeleteTransactions } from "@/actions/accounts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,10 +23,13 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { categoryColors } from "@/data/categories";
+import useFetch from "@/hooks/use-fetch";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Clock, MoreHorizontal, RefreshCw, Search, Trash, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useMemo } from "react";
+import { BarLoader } from "react-spinners";
+import { toast } from "sonner";
 import { set } from "zod";
 
 const RECURRING_INTERVALS = {
@@ -69,6 +73,24 @@ const TransactionsTable = ({ transactions }) => {
     //         return direction === "asc" ? comparison : -comparison;
     //     })
     //     : [];
+
+    const {loading : deleteLoading , fn : deleteFn , data : deleted} = useFetch(bulkDeleteTransactions);
+    const handleBulkDelete = async () =>{
+        if(!window.confirm(
+            `Are you sure you want to delete ${selectedIds.length} transactions?`
+        )
+      ){
+        return;
+      }
+
+      deleteFn(selectedIds);
+    }
+
+    useEffect(() =>{
+        if(deleted && !deleteLoading){
+            toast.error("Transactions deleted Successfully");
+        }
+    },[deleted,deleteLoading]);
 
     const filteredAndSortedTransactions = useMemo(() =>{
         let result = [...transactions];
@@ -149,9 +171,7 @@ const TransactionsTable = ({ transactions }) => {
         );
     };
 
-    const handleBulkDelete = () => {
-        
-    }
+    
 
     const handleClearFlters = () => {
         setSearchTerm("");
@@ -162,6 +182,7 @@ const TransactionsTable = ({ transactions }) => {
 
     return (
         <div className="space-y-4">
+            {deleteLoading  && (<BarLoader className="mt-4" width={"100%"} color="#9333ea" /> )}
             <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -273,7 +294,7 @@ const TransactionsTable = ({ transactions }) => {
                                         />
                                     </TableCell>
 
-                                    {/* ✅ Hydration-safe date rendering */}
+                                    {/* Hydration-safe date rendering */}
                                     <TableCell>
                                         {isMounted ? format(new Date(transaction.date), "PP") : ""}
                                     </TableCell>
@@ -351,7 +372,9 @@ const TransactionsTable = ({ transactions }) => {
                                                     Edit
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive">
+                                                <DropdownMenuItem className="text-destructive" onClick = {() =>{
+                                                    deleteFn([transaction.id]);
+                                                }}>
                                                     Delete
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -364,6 +387,9 @@ const TransactionsTable = ({ transactions }) => {
                 </Table>
             </div>
         </div>
+       
+       
+        
     );
 };
 

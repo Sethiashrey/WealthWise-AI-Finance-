@@ -28,7 +28,8 @@ const AccountsPage = async ({params} )=> {
            <p className='text-sm text-muted-foreground'>{account._count.transactions} Transactions</p>
         </div>
       </div>
-        {/* Chart Sections  */}    
+        {/* Chart Sections  */}  
+          
 
 
 
