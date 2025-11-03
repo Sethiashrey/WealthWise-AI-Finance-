@@ -92,26 +92,33 @@ export async function bulkDeleteTransactions(transactionIds) {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("User not authorized");
+
     const user = await db.user.findUnique({
       where: { clerkUserId: userId },
     });
     if (!user) throw new Error("User not found");
-    const transaction = await db.transaction.findMany({
+
+    // ✅ Get all transactions for the user
+    const transactions = await db.transaction.findMany({
       where: {
         id: { in: transactionIds },
         userId: user.id,
       },
     });
-    const accountBalanceChanges = transaction.reduce((acc, transaction) => {
-      const change = transaction.type === "EXPENSE"
-        ? transaction.amount    // Add back expense
-        : -transaction.amount;  // Subtract income
 
-      acc[transaction.accountId] = (acc[transaction.accountId] || 0) + change;
+    if (!transactions.length) {
+      throw new Error("No transactions found for deletion");
+    }
+
+    // ✅ Calculate balance changes for each account
+    const accountBalanceChanges = transactions.reduce((acc, tx) => {
+      const amount = Number(tx.amount); // convert Decimal → number
+      const change = tx.type === "EXPENSE" ? amount : -amount; // reverse the effect
+      acc[tx.accountId] = (acc[tx.accountId] || 0) + change;
       return acc;
     }, {});
 
-    // Delete transactions and update account balances
+    // ✅ Delete and update inside a Prisma transaction
     await db.$transaction(async (tx) => {
       await tx.transaction.deleteMany({
         where: {
@@ -119,6 +126,7 @@ export async function bulkDeleteTransactions(transactionIds) {
           userId: user.id,
         },
       });
+
       for (const [accountId, balanceChange] of Object.entries(accountBalanceChanges)) {
         await tx.account.update({
           where: { id: accountId },
@@ -130,11 +138,15 @@ export async function bulkDeleteTransactions(transactionIds) {
         });
       }
     });
+
     revalidatePath("/dashboard");
     revalidatePath("/account/[id]");
+
     return { success: true };
   } catch (error) {
+    console.error("❌ Error in bulkDeleteTransactions:", error);
     return { success: false, error: error.message };
   }
 }
+
 
