@@ -72,7 +72,7 @@ export async function getAccountWithTransaction(accountId) {
           orderBy: { date: "desc" },
         },
         _count: {
-          select: { transactions: true }, // ✅ plural
+          select: { transactions: true }, // plural
         },
       },
     });
@@ -98,7 +98,7 @@ export async function bulkDeleteTransactions(transactionIds) {
     });
     if (!user) throw new Error("User not found");
 
-    // ✅ Get all transactions for the user
+    // Get all transactions for the user
     const transactions = await db.transaction.findMany({
       where: {
         id: { in: transactionIds },
@@ -110,7 +110,7 @@ export async function bulkDeleteTransactions(transactionIds) {
       throw new Error("No transactions found for deletion");
     }
 
-    // ✅ Calculate balance changes for each account
+    // Calculate balance changes for each account
     const accountBalanceChanges = transactions.reduce((acc, tx) => {
       const amount = Number(tx.amount); // convert Decimal → number
       const change = tx.type === "EXPENSE" ? amount : -amount; // reverse the effect
@@ -118,7 +118,7 @@ export async function bulkDeleteTransactions(transactionIds) {
       return acc;
     }, {});
 
-    // ✅ Delete and update inside a Prisma transaction
+    // Delete and update inside a Prisma transaction
     await db.$transaction(async (tx) => {
       await tx.transaction.deleteMany({
         where: {
@@ -144,7 +144,7 @@ export async function bulkDeleteTransactions(transactionIds) {
 
     return { success: true };
   } catch (error) {
-    console.error("❌ Error in bulkDeleteTransactions:", error);
+    console.error("Error in bulkDeleteTransactions:", error);
     return { success: false, error: error.message };
   }
 }
