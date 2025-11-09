@@ -98,7 +98,6 @@ export async function bulkDeleteTransactions(transactionIds) {
     });
     if (!user) throw new Error("User not found");
 
-    // Get all transactions for the user
     const transactions = await db.transaction.findMany({
       where: {
         id: { in: transactionIds },
@@ -112,7 +111,7 @@ export async function bulkDeleteTransactions(transactionIds) {
 
     // Calculate balance changes for each account
     const accountBalanceChanges = transactions.reduce((acc, tx) => {
-      const amount = Number(tx.amount); // convert Decimal → number
+      const amount = Number(tx.amount);
       const change = tx.type === "EXPENSE" ? amount : -amount; // reverse the effect
       acc[tx.accountId] = (acc[tx.accountId] || 0) + change;
       return acc;
@@ -139,8 +138,11 @@ export async function bulkDeleteTransactions(transactionIds) {
       }
     });
 
+    // ✅ Correct revalidation
     revalidatePath("/dashboard");
-    revalidatePath("/account/[id]");
+    for (const accountId of Object.keys(accountBalanceChanges)) {
+      revalidatePath(`/account/${accountId}`, "page");
+    }
 
     return { success: true };
   } catch (error) {
@@ -148,5 +150,6 @@ export async function bulkDeleteTransactions(transactionIds) {
     return { success: false, error: error.message };
   }
 }
+
 
 

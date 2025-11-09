@@ -71,11 +71,9 @@ export function NoPaginationTransactionTable({ transactions }) {
   const [recurringFilter, setRecurringFilter] = useState("");
   const router = useRouter();
 
-  // Memoized filtered and sorted transactions
   const filteredAndSortedTransactions = useMemo(() => {
     let result = [...transactions];
 
-    // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       result = result.filter((transaction) =>
@@ -83,12 +81,10 @@ export function NoPaginationTransactionTable({ transactions }) {
       );
     }
 
-    // Apply type filter
     if (typeFilter) {
       result = result.filter((transaction) => transaction.type === typeFilter);
     }
 
-    // Apply recurring filter
     if (recurringFilter) {
       result = result.filter((transaction) => {
         if (recurringFilter === "recurring") return transaction.isRecurring;
@@ -96,10 +92,8 @@ export function NoPaginationTransactionTable({ transactions }) {
       });
     }
 
-    // Apply sorting
     result.sort((a, b) => {
       let comparison = 0;
-
       switch (sortConfig.field) {
         case "date":
           comparison = new Date(a.date) - new Date(b.date);
@@ -113,7 +107,6 @@ export function NoPaginationTransactionTable({ transactions }) {
         default:
           comparison = 0;
       }
-
       return sortConfig.direction === "asc" ? comparison : -comparison;
     });
 
@@ -150,22 +143,40 @@ export function NoPaginationTransactionTable({ transactions }) {
     data: deleted,
   } = useFetch(bulkDeleteTransactions);
 
+  // ✅ FIX #1 — Updated bulk delete handler
   const handleBulkDelete = async () => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete ${selectedIds.length} transactions?`
-      )
-    )
-      return;
+    if (selectedIds.length === 0) return;
 
-    deleteFn(selectedIds);
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete ${selectedIds.length} transactions?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await deleteFn(selectedIds);
+
+      // ✅ Clear selected items immediately
+      setSelectedIds([]);
+
+      // ✅ Wait a bit before refresh
+      setTimeout(() => {
+        router.refresh();
+      }, 200);
+
+      toast.success("Transactions deleted successfully");
+    } catch (err) {
+      toast.error("Failed to delete transactions");
+    }
   };
 
   useEffect(() => {
     if (deleted && !deleteLoading) {
-      toast.error("Transactions deleted successfully");
+      toast.success("Transactions deleted successfully");
+      setSelectedIds([]);
+      router.refresh();
     }
-  }, [deleted, deleteLoading]);
+  }, [deleted, deleteLoading, router]);
 
   const handleClearFilters = () => {
     setSearchTerm("");
@@ -179,7 +190,7 @@ export function NoPaginationTransactionTable({ transactions }) {
       {deleteLoading && (
         <BarLoader className="mt-4" width={"100%"} color="#9333ea" />
       )}
-      {/* Filters */}
+
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -216,7 +227,6 @@ export function NoPaginationTransactionTable({ transactions }) {
             </SelectContent>
           </Select>
 
-          {/* Bulk Actions */}
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-2">
               <Button
@@ -243,7 +253,6 @@ export function NoPaginationTransactionTable({ transactions }) {
         </div>
       </div>
 
-      {/* Transactions Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -252,7 +261,7 @@ export function NoPaginationTransactionTable({ transactions }) {
                 <Checkbox
                   checked={
                     selectedIds.length ===
-                      filteredAndSortedTransactions.length &&
+                    filteredAndSortedTransactions.length &&
                     filteredAndSortedTransactions.length > 0
                   }
                   onCheckedChange={handleSelectAll}
@@ -346,8 +355,7 @@ export function NoPaginationTransactionTable({ transactions }) {
                         : "text-green-500"
                     )}
                   >
-                    {transaction.type === "EXPENSE" ? "-" : "+"}$
-                    {transaction.amount.toFixed(2)}
+                    {transaction.type === "EXPENSE" ? "-" : "+"}${transaction.amount.toFixed(2)}
                   </TableCell>
                   <TableCell>
                     {transaction.isRecurring ? (
@@ -404,9 +412,15 @@ export function NoPaginationTransactionTable({ transactions }) {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        {/* ✅ FIX #2 — Updated single delete */}
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => deleteFn([transaction.id])}
+                          onClick={async () => {
+                            await deleteFn([transaction.id]);
+                            setSelectedIds([]);
+                            setTimeout(() => router.refresh(), 200);
+                            toast.success("Transaction deleted successfully");
+                          }}
                         >
                           Delete
                         </DropdownMenuItem>
