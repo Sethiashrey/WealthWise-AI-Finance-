@@ -21,7 +21,7 @@ const AccountsPage = async ({params} )=> {
       <div className='flex gap-4 items-end justify-between'>
         <div>
             <h1 className='text-5xl sm:text-6xl font-bold gradient-title capitalize'>{account.name}</h1>
-        <p className='text-muted-foreground'>{account.type.charAt(0) + account.type.slice(1).toLowerCase()} Account</p>
+        <p className='text-muted-foreground'>{account.type.charAt(0) + account.type.slice(1).toLowerCase()}{" "} Account</p>
         </div>
            
         <div className='text-right pb-2'>
@@ -32,7 +32,7 @@ const AccountsPage = async ({params} )=> {
         {/* Chart Sections  */}  
           
         <Suspense fallback={<BarLoader className="mt-4" width={"100%"} color="#9333ea" />}>
-          <AccountChart transactions={transactions} />
+          <AccountChart transactions={transactions} />                 
         </Suspense>
 
 
